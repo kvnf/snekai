@@ -14,6 +14,9 @@ from typing import (
     Optional
 )
 
+pygame.init()
+font = pygame.font.SysFont('ProggyCleanTTSZ Nerd Font Mono', 30)
+
 BLOCK_SIZE: int = 20
 SPEED = 15
 
@@ -65,13 +68,15 @@ class Game:
         if not AI: 
             self.usr_input()
         self._move(action)
-        self._snake_update()
+        self.snake.insert(0, self.head)
         game_over = False
         if self.is_collision():
             game_over = True
         if self.head == self.food:
             self.score += 1
             self._spawn_food()
+        else:
+            self.snake.pop()
             
         self._screen_update()
         self.clock.tick(SPEED)
@@ -84,6 +89,8 @@ class Game:
             self.head.y > self.height or
             self.head.x < 0 or
             self.head.y < 0):
+            return True
+        if self.head in self.snake[1:]:
             return True
         return False
         
@@ -131,18 +138,17 @@ class Game:
         self.head = Coord(x,y)
         
     def _screen_update(self) -> None:
-        self.display.fill(GREEN)
+        self.display.fill(BLACK)
         
         for block in self.snake:
             pygame.draw.rect(self.display, WHITE, 
                              pygame.Rect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE))  
         assert self.food is not None
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
+        score_text = font.render(f'Score: {self.score}', False,  WHITE)
+        self.display.blit(score_text, [0, 0])
         pygame.display.flip()
     
-    def _snake_update(self) -> None:
-        self.snake = [self.head]
-        
     def _spawn_food(self) -> None:
         x_blocks: int = (self.width - BLOCK_SIZE) // BLOCK_SIZE            
         y_blocks: int = (self.height - BLOCK_SIZE) // BLOCK_SIZE
