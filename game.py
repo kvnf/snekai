@@ -8,17 +8,17 @@ from random import (
     randint
 )
 from typing import (
-    AsyncIterable,
     List, 
     NamedTuple,
-    Optional
+    Optional,
+    Tuple
 )
 
 pygame.init()
 font = pygame.font.SysFont('ProggyCleanTTSZ Nerd Font Mono', 30)
 
 BLOCK_SIZE: int = 20
-SPEED = 15
+SPEED = 20
 
 BLACK   =   '0x000000'
 BLUE    =   '0x0000ff'
@@ -64,15 +64,19 @@ class Game:
         self.step  = 0
         self._spawn_food()
     
-    def game_step(self, action) -> bool:
+    def game_step(self, action) -> Tuple[int, bool]:
         if not AI: 
             self.usr_input()
         self._move(action)
         self.snake.insert(0, self.head)
         game_over = False
+        
+        reward = 0 # reward for agent
         if self.is_collision():
+            reward = -1
             game_over = True
         if self.head == self.food:
+            reward = 1
             self.score += 1
             self._spawn_food()
         else:
@@ -81,19 +85,24 @@ class Game:
         self._screen_update()
         self.clock.tick(SPEED)
         self.step += 1
-        return game_over    
+        
+        return (reward, game_over)    
     
-    def is_collision(self) -> bool:
+    def is_collision(self, block=None) -> bool:
+        # block: optional argument used to check
+        # for nearby collisions (agent.py)
+        if block is None:
+            block = self.head
         
-        if (self.head.x > self.width or
-            self.head.y > self.height or
-            self.head.x < 0 or
-            self.head.y < 0):
+        if (block.x > self.width or
+            block.y > self.height or
+            block.x < 0 or
+            block.y < 0):
             return True
-        if self.head in self.snake[1:]:
+        if block in self.snake[1:]:
             return True
-        return False
-        
+        return False      
+    
     def usr_input(self):
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -119,6 +128,7 @@ class Game:
             new_index = (dir_index - 1) % 4
 
         self.direction = directions[new_index]
+
     
     def _move(self, action) -> None:
 
@@ -167,6 +177,6 @@ if __name__ == "__main__":
     def play(game: Game):
         game_over = False
         while not game_over:
-            game_over = game.game_step(choice([STRAIGHT, RIGHT, LEFT]))
+            reward, game_over = game.game_step(choice([STRAIGHT, RIGHT, LEFT]))
 
     play(game)
