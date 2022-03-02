@@ -91,11 +91,11 @@ class PlotHandler:
 
 
 MEM_SIZE: int = 100000
-BATCH_SIZE = 1000
-EPS_START = 1.0
-EPS_END = -0.3
-LEARNING_RATE = 0.0001
-GAMMA = 0.9
+BATCH_SIZE: int = 1000
+EPS_START: float = 1.0
+EPS_END: float = -0.3
+LEARNING_RATE: float = 0.0001
+GAMMA: float = 0.9
 # use gpu if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
