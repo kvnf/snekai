@@ -2,7 +2,7 @@ from unittest import TestCase
 from typing import (
     List
 )
-from game import (
+from src.game import (
     BLOCK_SIZE,
     STRAIGHT,
     RIGHT,

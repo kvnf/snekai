@@ -1,10 +1,7 @@
-from turtle import color
-import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
 import torch
 from collections import deque
-from game import (
+from .game import (
     BLOCK_SIZE,
     STRAIGHT,
     LEFT,
@@ -12,103 +9,47 @@ from game import (
 
     Game,
 )
-from IPython import display
 from math import exp
-from model import DQN, Trainer
+from .model import DQN, Trainer
 from random import choice, sample, randint, random
 from typing import (
     Deque,
     List,
     Tuple,
 )
-from custom_types import (
+from .custom_types import (
     Action,
     Coord,
     Direction,
     MemoryCell,
 )
+from .plot_handler import PlotHandler
 
-
-class PlotHandler:
-    def __init__(self, loss: List[float] = [],
-                 record: int = 0,
-                 scores: List[int] = [],
-                 predicted_ratio: List[float] = []) -> None:
-        self.scores = scores
-        self.records: List[int] = [record]
-        self.record_games: List[int] = [0]
-        self.predicted_ratio = predicted_ratio
-        self.total_score = 0
-
-        self.loss = loss
-        self.max_loss = np.finfo(float).tiny
-
-        self.fig, self.axs = plt.subplots(2, 1)
-        self.ax2 = self.axs[0].twinx()
-        plt.ion()
-
-        self.ma: List[float] = []
-        self.mean: List[float] = []
-        self.mean_diff: List[float] = []
-
-    def moving_avg(self, x: List, n: int) -> None:
-        self.ma.append(sum(x[-n:]) / n)
-
-    def _scores_calc(self, avg: int, games: int,  loss: float, record: int, score: int, predicted_ratio: float) -> None:
-        # if loss > self.max_loss:
-        #     self.max_loss = loss
-        # self.axs[1].plot(self.loss, color='red')
-        # self.axs[1].set_ylabel("Loss")
-        if record > self.records[-1]:
-            self.records.append(record)
-            self.record_games.append(games - 1)
-        self.total_score += score
-        self.scores.append(score)
-        self.predicted_ratio.append(predicted_ratio)
-        self.mean.append(self.total_score / games)
-        self.moving_avg(self.scores, avg)
-        self.mean_diff.append(self.ma[-1] - self.mean[-1])
-        self.loss.append(loss)
-
-    def plot(self, avg: int, games: int,  loss: float, record: int, score: int, predicted_ratio: float) -> None:
-        self._scores_calc(avg, games,  loss, record, score, predicted_ratio)
-        self.axs[0].plot(self.scores, color='red')
-        self.axs[0].scatter(self.record_games, self.records, color='red')
-        self.axs[0].plot(self.mean, color='green')
-        self.axs[0].plot(self.ma, color='blue')
-        self.axs[0].set_ylabel("Game Score")
-        self.axs[0].legend(
-            ['Score', f'Record: {record}', 'Score mean',
-                f'Score avg. {avg} games'],
-            loc='upper left')
-        self.ax2.plot(self.predicted_ratio, ls='--', color='orange')
-        self.ax2.set_ylabel('steps predicted / total steps', color='orange')
-        self.axs[1].plot(self.mean_diff, color='red')
-        self.axs[1].set_ylabel(f'Avg {avg} games - Score mean')
-        self.axs[1].set_xlabel("Games Played")
-        self.fig.show()
-        plt.pause(1)
-
-
-MEM_SIZE: int = 100000
-BATCH_SIZE: int = 1000
-EPS_START: float = 1.0
-EPS_END: float = -0.3
-LEARNING_RATE: float = 0.0001
-GAMMA: float = 0.9
 # use gpu if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Agent:
 
-    def __init__(self, decay=100) -> None:
-        self.memory: Deque[MemoryCell] = deque(maxlen=MEM_SIZE)
+    def __init__(self, mem_size: int = 100000,
+                 batch_size: int = 1000,
+                 eps_start: float = 1.0,
+                 eps_end: float = -0.3,
+                 learning_rate=0.0001,
+                 gamma: float = 0.9,
+                 decay: int = 100) -> None:
+        self.memory: Deque[MemoryCell] = deque(maxlen=mem_size)
         self.eps_decay = decay
+        self.eps_start = eps_start
+        self.eps_end = eps_end
+        self.batch_size = batch_size
         # in_size == len(self.state)
         # out_size == len(STRAIGHT, LEFT,RIGHT)
+
+       # model
         self.dqn = DQN(in_size=11, inner_size=256, out_size=3).to(device)
-        self.trainer = Trainer(self.dqn, LEARNING_RATE, GAMMA)
+        self.trainer = Trainer(self.dqn, learning_rate, gamma)
+
         self.games_played: int = 0
         self.step_predictions = 0
         self.step_random = 0
@@ -168,10 +109,10 @@ class Agent:
 
     def train(self) -> float:
         loss: float = 0
-        if len(self.memory) < BATCH_SIZE:
+        if len(self.memory) < self.batch_size:
             train_set = list(self.memory)
         else:
-            train_set = list(sample(self.memory, BATCH_SIZE))
+            train_set = list(sample(self.memory, self.batch_size))
 
         for el in train_set:
             loss = self.trainer.train(el)
@@ -181,7 +122,7 @@ class Agent:
         # model decides action based on epsilon greedy algorithm
         actions: Tuple[Action, Action, Action] = (STRAIGHT, RIGHT, LEFT)
         action: Action = STRAIGHT
-        if random() * EPS_START > self._epsilon_threshold():
+        if random() * self.eps_start > self._epsilon_threshold():
             # call model & predict
             state_tensor = torch.tensor(
                 state, device=device, dtype=torch.float)
@@ -197,8 +138,9 @@ class Agent:
         return action
 
     def _epsilon_threshold(self) -> float:
-        eps_threshold: float = EPS_END + \
-            (EPS_START - EPS_END) * exp(-self.games_played/self.eps_decay)
+        eps_threshold: float = self.eps_end + \
+            (self.eps_start - self.eps_end) * \
+            exp(-self.games_played/self.eps_decay)
         return eps_threshold
 
 

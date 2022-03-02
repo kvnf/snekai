@@ -6,7 +6,7 @@ import torch.optim as optim
 from typing import(
     Tuple
 )
-from custom_types import (
+from .custom_types import (
     MemoryCell
 )
 # https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html

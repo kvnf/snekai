@@ -1,13 +1,13 @@
 from unittest import TestCase
 import numpy as np
-from game import (
+from src.game import (
     STRAIGHT,
     LEFT,
     RIGHT,
     Coord,
     Game
 )
-from agent import Agent
+from src.agent import Agent
 
 
 class AgentTest(TestCase):

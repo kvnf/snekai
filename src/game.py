@@ -13,7 +13,7 @@ from typing import (
     Optional,
     Tuple
 )
-from custom_types import (
+from .custom_types import (
     Action,
     Coord,
     Direction,
